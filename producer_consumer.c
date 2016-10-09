@@ -40,10 +40,10 @@ void *producer(){
 	int i = 0;
 
 	//random sleep
-	int rnd = genrand_int32() % 5 + 3;
 	while(1){
-	   	sleep(rnd);
+	   	int rnd = genrand_int32() % 5 + 3;
 		printf("PRODUCER: next production in %d\n", rnd);
+		sleep(rnd);
 		//lock buffer
 		pthread_mutex_lock(&mutex);
 		//check buffer wait for conditional object from consumer
@@ -64,16 +64,42 @@ void *producer(){
 	}
 }
 
+void *consumer(){
+   	while(1){
+	   	//lock buffer
+	   	pthread_mutex_lock(&mutex);
+		//make sure buffer is not empty
+		while(index == 0){
+		   	pthread_cond_wait(&condConsume, &mutex);
+		   	printf("CONSUMER: waiting on producer\n");
+		}
+		//unlock
+		pthread_mutex_unlock(&mutex);
 
-int main(){
+		sleep(buffer[index-1].work);
+
+		pthread_mutex_lock(&mutex);
+		printf("CONSUMER %d: worked %d units to consume item at position %d with value %d\n", pthread_self(), buffer[index-1].work, index-1, buffer[index-1].val);
+		index-= 1;
+		pthread_cond_signal(&condProduce);
+		pthread_mutex_unlock(&mutex);
+	}
+}
+
+
+
+int main()
+{
    	//twister initialization
 	init_genrand(time(NULL));
 	signal(SIGINT, interruptHandler);
-	memset(buff, 0, sizeof(buffer));
+	memset(buffer, 0, sizeof(buffer));
 
 	pthread_create(&produce, NULL, producer, NULL);
+	pthread_create(&consume, NULL, consumer, NULL);
 
 	pthread_join(produce, NULL);
+	pthread_join(consume, NULL);
 
 	return 0;
 }
