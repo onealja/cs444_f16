@@ -71,7 +71,7 @@ void *consumer(){
 		//make sure buffer is not empty
 		while(index == 0){
 		   	pthread_cond_wait(&condConsume, &mutex);
-		   	printf("CONSUMER: waiting on producer\n");
+		   	printf("CONSUMER %d: waiting on producer\n", pthread_self());
 		}
 		//unlock
 		pthread_mutex_unlock(&mutex);
@@ -80,7 +80,8 @@ void *consumer(){
 
 		pthread_mutex_lock(&mutex);
 		printf("CONSUMER %d: worked %d units to consume item at position %d with value %d\n", pthread_self(), buffer[index-1].work, index-1, buffer[index-1].val);
-		index-= 1;
+		if(index > 0)
+		   	index -= 1;
 		pthread_cond_signal(&condProduce);
 		pthread_mutex_unlock(&mutex);
 	}
@@ -88,19 +89,32 @@ void *consumer(){
 
 
 
-int main()
+int main(int argc, char *argv[])
 {
+   	long cons;
+	int j;
    	//twister initialization
 	init_genrand(time(NULL));
 	signal(SIGINT, interruptHandler);
 	memset(buffer, 0, sizeof(buffer));
 
 	pthread_create(&produce, NULL, producer, NULL);
-	pthread_create(&consume, NULL, consumer, NULL);
+	
+	if(argc < 2){
+	   	printf("how many consumers?\n");
+		scanf("%d", &cons);
+	}
+	else
+	   	cons = atoi(argv[1]);
+
+	for(j=1; j<=cons; j++)
+	   	pthread_create(&consume, NULL, consumer, NULL);
 
 	pthread_join(produce, NULL);
-	pthread_join(consume, NULL);
-
+	
+	for(j=1; j<=cons; j++);
+		pthread_join(consume, NULL);
+	
 	return 0;
 }
 
